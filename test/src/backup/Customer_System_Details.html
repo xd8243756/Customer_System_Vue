@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>案件詳情</title>
+  <style>
+    /* 簡化樣式，保留 badge 等 */
+    :root{--color-bg:#F7F9FC;--color-border:#E5EAF0;--sev-high:#EB5757;--sev-medium:#F2994A;--sev-low:#27AE60;--status-pending:#F2994A;--status-accepted:#2D9CDB;--status-processing:#9ea922;--status-completed:#27AE60;--shadow:0 6px 20px rgba(0,0,0,0.06);--radius:12px}
+    body{font-family: "Microsoft JhengHei",sans-serif;background:var(--color-bg);margin:20px}
+    .card-details{background:#dfb86a;padding:20px;border-radius:12px;max-width:700px;margin:auto}
+    .details-content{background:#fff;padding:24px;border-radius:6px;box-shadow:var(--shadow)}
+    .Detail_Edit-Delete{display:flex;justify-content:center;gap:24px;padding-top:12px}
+    .badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;color:#fff}
+    .sev-high{background:var(--sev-high)}.sev-medium{background:var(--sev-medium)}.sev-low{background:var(--sev-low)}
+    .st-pending{background:var(--status-pending)}.st-accepted{background:var(--status-accepted)}.st-processing{background:var(--status-processing)}.st-completed{background:var(--status-completed)}
+    button{padding:8px 12px;border-radius:6px;border:none;cursor:pointer}
+    .btn-danger{background:#e74c3c;color:#fff}.btn-info{background:#17a2b8;color:#fff}.btn-primary{background:#007bff;color:#fff}
+  </style>
+</head>
+<body>
+  <div class="card-details">
+    <h2>案件詳情</h2>
+    <div id="details" class="details-content">載入中...</div>
+    <div class="Detail_Edit-Delete">
+      <button id="actionBtn" class="btn btn-info">受理 / 編輯</button>
+      <button id="deleteBtn" class="btn btn-danger">刪除</button>
+    </div>
+  </div>
+
+  <script>
+    const apiBase = 'http://localhost:5212/api';
+    let detail = null;
+    function el(id){return document.getElementById(id)}
+
+    function dateFmt(v){ if(!v) return ''; const d=new Date(v); return d.toLocaleDateString(); }
+
+    async function load(id){
+      try{
+        const r = await fetch(`${apiBase}/TimMovE_ComplaintCase_/${id}`);
+        if(!r.ok) throw new Error('fetch detail failed');
+        detail = await r.json();
+        render();
+      }catch(e){ document.getElementById('details').textContent = '載入失敗'; console.error(e); }
+    }
+
+    function render(){
+      const d = detail || {};
+      document.getElementById('details').innerHTML = `
+        <p><strong>案件編號：</strong>${d.客訴紀錄編號||''}</p>
+        <p><strong>訂單編號：</strong>${d.對應訂單編號||''}</p>
+        <p><strong>客戶姓名：</strong>${d.客戶姓名||''}</p>
+        <p><strong>客訴類型：</strong>${d.客訴類型||''}</p>
+        <p><strong>嚴重度：</strong><span class="badge ${d.案件嚴重度==='高'?'sev-high':d.案件嚴重度==='中'?'sev-medium':'sev-low'}">${d.案件嚴重度||''}</span></p>
+        <p><strong>客訴日期：</strong>${dateFmt(d.客訴日期)}</p>
+        <p><strong>受理日期：</strong>${dateFmt(d.受理日期)}</p>
+        <p><strong>受理人員：</strong>${d.受理人員||''}</p>
+        <p><strong>負責人：</strong>${d.案件負責人||''}</p>
+        <p><strong>處理狀態：</strong><span class="badge ${d.處理狀態==='待處理'?'st-pending':d.處理狀態==='已受理'?'st-accepted':d.處理狀態==='處理中'?'st-processing':'st-completed'}">${d.處理狀態||''}</span></p>
+        <p><strong>客訴敘述：</strong>${d.客訴內容||''}</p>
+      `;
+      el('actionBtn').textContent = detail.處理狀態==='待處理' ? '受理' : '編輯';
+    }
+
+    async function action(){
+      if(!detail) return;
+      if(detail.處理狀態 === '待處理'){
+        try{
+          const r = await fetch(`${apiBase}/TimMovE_ComplaintCase_/${detail.客訴紀錄編號}`, {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(2)});
+          if(!r.ok) throw new Error('patch failed');
+          alert('案件已受理');
+          await load(detail.客訴紀錄編號);
+        }catch(e){ console.error(e); alert('更新失敗'); }
+      } else {
+        alert('編輯功能請改用完整系統 UI，或前往編輯頁面。');
+      }
+    }
+
+    async function remove(){
+      if(!detail) return; if(!confirm('確定要刪除此案件嗎？')) return;
+      try{ const r=await fetch(`${apiBase}/TimMovE_ComplaintCase_/${detail.客訴紀錄編號}`,{method:'DELETE'}); if(!r.ok) throw new Error('delete failed'); alert('已刪除'); }catch(e){console.error(e);alert('刪除失敗');}
+    }
+
+    el('actionBtn').addEventListener('click',action);
+    el('deleteBtn').addEventListener('click',remove);
+
+    // 從 URL 讀 id
+    const params = new URLSearchParams(location.search);
+    const id = params.get('id');
+    if(id) load(id); else document.getElementById('details').textContent='請於 URL 加上 ?id=案件編號 以載入資料';
+  </script>
+</body>
+</html>

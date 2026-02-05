@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>公告列表</title>
+  <!-- Bootstrap CSS + Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body{font-family:Microsoft JhengHei, sans-serif;background:#F7F9FC;margin:0;padding:0}
+    .app-header{background:#fff;border-bottom:1px solid #E5EAF0;padding:12px 6%;display:flex;justify-content:space-between;align-items:center}
+    .brand-title{font-size:28px;color:#2F80ED;font-weight:700}
+    .page-wrap{padding:24px}
+    .card{max-width:1100px;margin:18px auto;background:#fff;padding:20px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.04)}
+    table{width:100%;border-collapse:collapse}
+    thead th{background:#c4d6f2;padding:10px;text-align:left}
+    tbody td{padding:12px;border-bottom:1px solid #E5EAF0}
+    .button{padding:8px 12px;border-radius:8px;border:1px solid #2F80ED;background:#2F80ED;color:#fff;cursor:pointer}
+    .is-top{color:#e74c3c;margin-right:6px}
+    .pager{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:12px}
+    .filter-row{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+    .nav-cats{display:flex;gap:8px;flex-wrap:wrap}
+    .nav-item{padding:6px 10px;background:#585858;cursor:pointer}
+  </style>
+</head>
+<body>
+  <header class="app-header"><div class="brand-title">魔法使搬運鋪—公告欄</div><div id="time">--:--:--</div></header>
+  <div class="page-wrap">
+    <div class="card">
+      <nav class="navbar navbar-expand-lg bg-body-tertiary rounded-pill mb-3" data-bs-theme="dark">
+        <div class="container-fluid">
+          <span class="navbar-brand">分類：</span>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <div class="collapse navbar-collapse" id="navbarNavDropdown">
+            <ul class="navbar-nav fw-bold p-2 headtitle">
+              <li class="nav-item"><a class="nav-link" href="#" id="allLink">全部公告</a></li>
+              <li class="nav-item"><a class="nav-link" href="#" id="type2Link">行政公告</a></li>
+              <li class="nav-item"><a class="nav-link" href="#" id="type4Link">人事公告</a></li>
+              <li class="nav-item"><a class="nav-link" href="#" id="type1Link">作業與安全公告</a></li>
+              <li class="nav-item"><a class="nav-link" href="#" id="type3Link">活動與福利公告</a></li>
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">部門選擇</a>
+                <ul class="dropdown-menu" id="categoryDropdown"></ul>
+              </li>
+            </ul>
+          </div>
+          <button id="createBtn" class="btn btn-success">新建公告</button>
+        </div>
+      </nav>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>公告部門</th>
+              <th>公告類型</th>
+              <th>公告標題</th>
+              <th>建立時間</th>
+              <th>上傳者</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="pager">
+        <button id="prev" class="button">&lt;</button>
+        <select id="pageSelect"></select>
+        <button id="next" class="button">&gt;</button>
+        <!-- inline create modal (hidden by default) -->
+        <div id="createModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);align-items:center;justify-content:center;z-index:2000;">
+          <div style="background:#fff;padding:16px;border-radius:10px;width:680px;max-height:85vh;overflow:auto;z-index:2001;margin:40px auto;">
+            <h3>新增公告 <button id="createCloseBtn" class="btn btn-sm" style="float:right">✕</button></h3>
+            <form id="createForm">
+              <div class="mb-2"><label class="form-label">公告編號</label><input id="announcementNo" class="form-control"/></div>
+              <div class="mb-2"><label class="form-label">公告標題</label><input id="announcementTitle" class="form-control"/></div>
+              <div class="row g-2"><div class="col-6"><label class="form-label">公告類別</label><select id="announcementType" class="form-select"></select></div>
+              <div class="col-6"><label class="form-label">公告部門</label><select id="announcementCategory" class="form-select"></select></div></div>
+              <div class="mb-2"><label class="form-label">公告內容</label><textarea id="announcementContent" rows="6" class="form-control"></textarea></div>
+              <div class="mb-2"><label class="form-label">上傳人</label><select id="publishedBy" class="form-select"></select></div>
+              <div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="istopCreate"/><label class="form-check-label" for="istopCreate">是否置頂</label></div>
+              <div class="d-flex gap-2 justify-content-end"><button class="btn btn-primary" type="submit">新建公告</button><button id="cancelCreateBtn" type="button" class="btn btn-secondary">取消</button></div>
+            </form>
+          </div>
+        </div>
+
+        <script>
+          const apiBase = 'http://localhost:5212/api';
+          document.addEventListener('DOMContentLoaded', ()=>{
+            console.log('Announcement page DOMContentLoaded');
+            let announcements = [];
+            let categories = [];
+            let staff = [];
+            let pageSize = 10;
+            let currentPage = 1;
+
+            function formatTime(s){ return s ? s.replace('T',' ').slice(0,16) : ''; }
+
+            async function loadCategories(){
+              try{ const r = await fetch(`${apiBase}/Announcement_/GetAnnouncementCategory`); if(r.ok){ categories = await r.json(); renderCategories(); } }
+              catch(e){ console.warn('loadCategories',e); }
+            }
+
+            function renderCategories(){
+              const dd = document.getElementById('categoryDropdown'); if(!dd) return; dd.innerHTML = '';
+              categories.forEach(c=>{ const li = document.createElement('li'); const a = document.createElement('a'); a.className='dropdown-item'; a.href='#'; a.textContent = c.topicCategoryName; a.addEventListener('click', (e)=>{ e.preventDefault(); filterByCategory(c.topicCategoryName); }); li.appendChild(a); dd.appendChild(li); });
+            }
+
+            async function loadAnnouncements(typeId){
+              try{
+                let url = `${apiBase}/Announcement_`;
+                if(typeId) url = `${apiBase}/Announcement_/${typeId}`;
+                const r = await fetch(url);
+                if(!r.ok) throw new Error('fetch announcements failed');
+                announcements = await r.json();
+                currentPage = 1; renderTable(); renderPager();
+              }catch(e){ console.error(e); alert('載入公告失敗，請在 console 查看'); }
+            }
+
+            function filterByCategory(name){ announcements = announcements.filter(a=>a.announcementCategory===name); currentPage=1; renderTable(); renderPager(); }
+
+            function renderTable(){
+              const tbody = document.getElementById('tbody'); if(!tbody) return; tbody.innerHTML='';
+              const start = (currentPage-1)*pageSize; const end = start + pageSize; const pageData = announcements.slice(start,end);
+              pageData.forEach(a=>{
+                const tr = document.createElement('tr');
+                tr.style.cursor='pointer';
+                tr.addEventListener('click', ()=> location.href = `Announcement_Detail.html?id=${a.announcementId}`);
+                const dept = document.createElement('td'); dept.innerHTML = (a.istop?'<span class="is-top">📌</span>':'') + (a.announcementCategory||'');
+                const type = document.createElement('td'); type.textContent = a.announcementType || '';
+                const title = document.createElement('td'); title.textContent = a.announcementTitle || '';
+                const created = document.createElement('td'); created.textContent = formatTime(a.createdAt||'');
+                const pub = document.createElement('td'); pub.textContent = a.publishedBy || '';
+                tr.appendChild(dept); tr.appendChild(type); tr.appendChild(title); tr.appendChild(created); tr.appendChild(pub);
+                tbody.appendChild(tr);
+              });
+            }
+
+            function renderPager(){
+              const total = Math.max(1, Math.ceil(announcements.length / pageSize));
+              const sel = document.getElementById('pageSelect'); if(!sel) return; sel.innerHTML='';
+              for(let i=1;i<=total;i++){ const o=document.createElement('option'); o.value=i; o.textContent = `第 ${i} 頁 / 共 ${total} 頁`; sel.appendChild(o); }
+              sel.value = currentPage;
+              const prev = document.getElementById('prev'); const next = document.getElementById('next'); if(prev) prev.disabled = currentPage===1; if(next) next.disabled = currentPage===total;
+            }
+
+            const prevBtn = document.getElementById('prev'); if(prevBtn) prevBtn.addEventListener('click', ()=>{ if(currentPage>1) { currentPage--; renderTable(); renderPager(); } });
+            const nextBtn = document.getElementById('next'); if(nextBtn) nextBtn.addEventListener('click', ()=>{ const total = Math.max(1, Math.ceil(announcements.length / pageSize)); if(currentPage<total){ currentPage++; renderTable(); renderPager(); } });
+            const pageSelect = document.getElementById('pageSelect'); if(pageSelect) pageSelect.addEventListener('change', (e)=>{ currentPage = Number(e.target.value); renderTable(); renderPager(); });
+
+            // open inline create modal
+            const createBtn = document.getElementById('createBtn'); if(createBtn) createBtn.addEventListener('click', async ()=>{
+              try{
+                // show modal and init selects
+                const modal = document.getElementById('createModal'); if(!modal) throw new Error('createModal not found'); modal.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+                await initCreateModal();
+                // focus title input
+                const t = document.getElementById('announcementTitle'); if(t) t.focus();
+              }catch(e){ console.error('open create modal failed', e); alert('無法開啟新增表單，請查看 console'); }
+            });
+
+            const createCloseBtn = document.getElementById('createCloseBtn'); if(createCloseBtn) createCloseBtn.addEventListener('click', ()=>{ document.getElementById('createModal').style.display='none'; document.body.style.overflow = ''; });
+            const cancelCreateBtn = document.getElementById('cancelCreateBtn'); if(cancelCreateBtn) cancelCreateBtn.addEventListener('click', ()=>{ document.getElementById('createModal').style.display='none'; document.body.style.overflow = ''; });
+
+            async function initCreateModal(){
+              try{
+                const [catsRes, typesRes, staffRes] = await Promise.all([
+                  fetch(`${apiBase}/Announcement_/GetAnnouncementCategory`).catch(()=>null),
+                  fetch(`${apiBase}/Announcement_/GetAnnouncementType`).catch(()=>null),
+                  fetch(`${apiBase}/CaseRecord/Staff`).catch(()=>null)
+                ]);
+                const cats = catsRes && catsRes.ok ? await catsRes.json() : [];
+                const types = typesRes && typesRes.ok ? await typesRes.json() : [];
+                staff = staffRes && staffRes.ok ? await staffRes.json() : [];
+                const fill = (id, arr, vKey, tKey)=>{ const s=document.getElementById(id); if(!s) return; s.innerHTML=''; arr.forEach(x=>{ const o=document.createElement('option'); o.value = x[vKey] ?? x[tKey]; o.textContent = x[tKey]; s.appendChild(o); }); };
+                fill('announcementCategory', cats, 'topicCategoryId','topicCategoryName');
+                fill('announcementType', types, 'topicTypeId','topicTypeName');
+                fill('publishedBy', staff, 'employeeId','employeeName');
+              }catch(e){ console.error('initCreateModal failed',e); }
+            }
+
+            const createForm = document.getElementById('createForm'); if(createForm) createForm.addEventListener('submit', async (e)=>{
+              e.preventDefault();
+              const pubVal = document.getElementById('publishedBy')?.value;
+
+              // determine a safe publishedBy: prefer selected staff if valid, otherwise fallback to first staff or 1
+              let publishedById = null;
+              if(pubVal){
+                const match = staff.find(s => ('' + (s.employeeId ?? '')) === ('' + pubVal));
+                if(match) publishedById = Number(pubVal);
+                else console.warn('publishedBy not found in staff, falling back:', pubVal);
+              }
+              if(publishedById === null) publishedById = Number(staff[0]?.employeeId) || 1;
+
+              const payload = {
+                announcementNo: document.getElementById('announcementNo')?.value || '',
+                announcementTitle: document.getElementById('announcementTitle')?.value || '',
+                announcementType: Number(document.getElementById('announcementType')?.value) || 0,
+                announcementCategory: Number(document.getElementById('announcementCategory')?.value) || 0,
+                announcementContent: document.getElementById('announcementContent')?.value || '',
+                publishedBy: publishedById,
+                reviewedBy: 1,
+                targetRoleId: 2,
+                istop: !!document.getElementById('istopCreate')?.checked
+              };
+
+              // keep announcementNo even if empty (Vue sends it); ensure numeric ids are numbers
+              if(payload.announcementNo === null) payload.announcementNo = '';
+              console.log('create payload', payload);
+              try{
+                const r = await fetch(`${apiBase}/Announcement_`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+                if(!r.ok){ const txt = await r.text(); throw new Error(`${r.status} ${r.statusText} - ${txt || 'create failed'}`); }
+                alert('公告建立成功'); document.getElementById('createModal').style.display='none'; document.body.style.overflow = ''; await loadAnnouncements();
+              }catch(err){ console.error('create failed', err); alert('建立失敗：'+(err.message||err)); }
+            });
+
+            // time
+            function tick(){ const d=new Date(); const timeEl = document.getElementById('time'); if(timeEl) timeEl.textContent = d.toLocaleTimeString(); }
+            setInterval(tick,1000); tick();
+
+            // init
+            (async function(){ await loadCategories(); renderCategories();
+              // wire fixed type links
+              const allLink = document.getElementById('allLink'); if(allLink) allLink.addEventListener('click', (e)=>{ e.preventDefault(); loadAnnouncements(); });
+              const t2 = document.getElementById('type2Link'); if(t2) t2.addEventListener('click', (e)=>{ e.preventDefault(); loadAnnouncements(2); });
+              const t4 = document.getElementById('type4Link'); if(t4) t4.addEventListener('click', (e)=>{ e.preventDefault(); loadAnnouncements(4); });
+              const t1 = document.getElementById('type1Link'); if(t1) t1.addEventListener('click', (e)=>{ e.preventDefault(); loadAnnouncements(1); });
+              const t3 = document.getElementById('type3Link'); if(t3) t3.addEventListener('click', (e)=>{ e.preventDefault(); loadAnnouncements(3); });
+              const p = new URLSearchParams(location.search); const type = p.get('type'); if(type) await loadAnnouncements(type); else await loadAnnouncements();
+            })();
+
+            // load bootstrap bundle for dropdown/toggler behavior
+            const bsScript = document.createElement('script'); bsScript.src = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js'; document.body.appendChild(bsScript);
+          });
+        </script>
+</body>
+</html>

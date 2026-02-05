@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>魔法使搬運鋪—客訴系統 (純 HTML)</title>
+  <style>
+    /* 直接複製 Vue 檔案的 CSS，移除 scoped */
+    :root {
+      --color-primary: #2F80ED;
+      --color-bg: #F7F9FC;
+      --color-card: #FFFFFF;
+      --color-border: #E5EAF0;
+      --text-main: #333333;
+      --text-sub: #666666;
+      --status-pending: #F2994A;
+      --status-accepted: #2D9CDB;
+      --status-processing: #6FCF97;
+      --status-completed: #27AE60;
+      --sev-high: #EB5757;
+      --sev-medium: #F2994A;
+      --sev-low: #27AE60;
+      --shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", system-ui, "Microsoft JhengHei", sans-serif; color: var(--text-main); background: var(--color-bg); line-height: 1.5; }
+    .app-header { background: var(--color-card); border-bottom: 1px solid var(--color-border); }
+    .app-header .wrap { max-width: 1200px; margin-left: 10%; padding: 10px 20px; text-align: center; display: flex; justify-content: space-between; }
+    .brand-title { font-size: 40px; font-weight: 700; color: var(--color-primary); }
+    .clock { color: var(--text-main); border: 2px solid var(--color-border); box-shadow: var(--shadow); padding: 10px 30px; border-radius: 10px; background-color: var(--color-border); user-select: none; }
+    .time-display { font-size: 40px; color: rgb(53, 39, 133); }
+    .container { max-width: 100%; height: auto; padding: 0 5%; gap: 20px; }
+    .card { background: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow); margin: 16px 0; }
+    .card-header { padding: 14px 16px; border-bottom: 2px solid var(--color-border); display:flex; align-items:center; justify-content:space-between; }
+    .card-title { font-weight: 700; font-size: 25px; }
+    .filters { display: flex; gap: 10px; flex-wrap: wrap; }
+    .input, .select { border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 10px; background: #FAFBFE; color: var(--text-main); }
+    .button { border: 1px solid var(--color-primary); color: var(--color-card); background: var(--color-primary); border-radius: 8px; padding: 8px 16px; cursor: pointer; }
+    .button_NewCustomerCase { border: 1px solid #27AE60; color: var(--color-card); background: #27AE60; margin-right: auto; border-radius: 8px; padding: 8px 16px; cursor: pointer; }
+    .form-group { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+    .form-group input[type="date"] { padding: 10px 12px; font-size: 14px; border: 1px solid #E0E0E0; border-radius: 8px; background-color: #FAFAFA; color: #333; width: 180px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+    .table-wrap { overflow: auto; }
+    table { width:100%; border-collapse: collapse; min-width:760px; }
+    thead th { text-align:left; font-weight:600; font-size:13px; color:var(--text-sub); padding:10px; border-bottom:10px solid var(--color-border); background:#F6F8FB; }
+    tbody td { padding:12px 10px; border-bottom:2px solid var(--color-border); vertical-align: middle; cursor: pointer; }
+    tbody tr:hover { background:#f8e5c8; }
+    .badge { display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:4px 10px; font-size:12px; font-weight:600; color:#faf9f9; }
+    .badge-dot { width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,0.9); }
+    .sev-high { background: var(--sev-high); }
+    .sev-medium { background: var(--sev-medium); }
+    .sev-low { background: var(--sev-low); }
+    .st-pending { background: var(--status-pending); }
+    .st-accepted { background: var(--status-accepted); }
+    .st-processing { background: var(--status-processing); }
+    .st-completed { background: var(--status-completed); }
+    .details { padding: 16px; border-left:1px solid var(--color-border); min-width: 300px; }
+    .layout { display:flex; gap:20px; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="wrap">
+      <div class="brand">
+        <div class="brand-title">魔法使搬運鋪—客訴系統</div>
+      </div>
+      <div class="clock">
+        <div id="time" class="time-display">--:--:--</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card" style="width:65%;">
+      <div class="card-header">
+        <div class="card-title">客訴紀錄總覽</div>
+        <div class="filters">
+          <button id="newCaseBtn" class="button_NewCustomerCase">建立客訴案件</button>
+          <select id="filterType" class="select">
+            <option>全部類型</option>
+          </select>
+          <input id="filterSearch" class="input" type="text" placeholder="搜尋案件編號 / 訂單編號 / 類型" />
+          <div class="form-group">
+            <label for="StartDate" class="form">開始日期：</label>
+            <input id="StartDate" type="date" name="StartDate">
+            <span> ~ </span>
+            <label for="EndDate">結束日期：</label>
+            <input id="EndDate" type="date" name="EndDate">
+          </div>
+          <select id="filterSeverity" class="select">
+            <option>全部嚴重度</option>
+            <option>高</option>
+            <option>中</option>
+            <option>低</option>
+          </select>
+          <select id="filterStatus" class="select">
+            <option>全部狀態</option>
+          </select>
+          <button id="searchBtn" class="button">篩選</button>
+        </div>
+      </div>
+
+      <div class="card-body table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="card-title-nav">案件編號</th>
+              <th class="card-title-nav">類型</th>
+              <th class="card-title-nav">對應訂單編號</th>
+              <th class="card-title-nav">客訴日期</th>
+              <th class="card-title-nav">受理日期</th>
+              <th class="card-title-nav">嚴重度</th>
+              <th class="card-title-nav">處理狀態</th>
+              <th class="card-title-nav">負責人</th>
+            </tr>
+          </thead>
+          <tbody id="casesTbody">
+            <!-- 列表由 JS 填入 -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 詳情面板改為覆蓋視窗（內含 Record_System） -->
+    <!-- Details Modal -->
+    <div id="detailsModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:1000;">
+      <div style="position:relative; width:90%; max-width:1100px; margin:40px auto; background:#fff; border-radius:12px; display:flex; gap:12px; padding:20px;">
+        <div style="flex:1; padding:16px;">
+          <h3>案件詳情 <button id="closeDetails" style="float:right;">✕</button></h3>
+          <div id="detailContent">選取一筆案件查看細節</div>
+          <div style="margin-top:12px; display:flex; gap:8px;">
+            <button id="editBtn" class="button">編輯</button>
+            <button id="acceptBtn" class="button">標示為已受理</button>
+            <button id="deleteBtn" class="button" style="background:#e74c3c; border-color:#e74c3c;">刪除</button>
+          </div>
+        </div>
+        <div style="width:380px; border-left:1px solid var(--color-border); padding-left:12px;">
+          <h4>處理紀錄</h4>
+          <div id="recordPanel">載入中...</div>
+          <div style="margin-top:8px;"><button id="addRecordBtn" class="button">新增進度</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- New Case Modal -->
+    <div id="newModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:1000;">
+      <div style="width:520px; margin:60px auto; background:#fff; padding:18px; border-radius:10px;">
+        <h3>建立客訴案件 <button id="closeNew" style="float:right;">✕</button></h3>
+        <form id="newForm">
+          <label>訂單編號</label>
+          <select id="new_caseId" class="input"></select>
+          <label>客戶姓名</label>
+          <select id="new_customerId" class="input"></select>
+          <label>客訴類型</label>
+          <select id="new_issueType" class="input"></select>
+          <label>嚴重度</label>
+          <select id="new_severity" class="input"><option>低</option><option>中</option><option>高</option></select>
+          <label>客訴日期</label>
+          <input id="new_startAt" type="date" class="input" />
+          <label>受理人員</label>
+          <select id="new_acceptedBy" class="input"></select>
+          <label>負責人</label>
+          <select id="new_managerId" class="input"></select>
+          <label>描述</label>
+          <textarea id="new_description" class="input" rows="4"></textarea>
+          <div style="margin-top:8px; display:flex; gap:8px;">
+            <button type="submit" class="button">建立</button>
+            <button type="button" id="cancelNew" class="button">取消</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:1000;">
+      <div style="width:520px; margin:60px auto; background:#fff; padding:18px; border-radius:10px;">
+        <h3>編輯案件 <button id="closeEdit" style="float:right;">✕</button></h3>
+        <form id="editForm">
+          <input type="hidden" id="edit_complaintId" />
+          <label>訂單編號</label>
+          <select id="edit_CaseId" class="input"></select>
+          <label>客戶姓名</label>
+          <select id="edit_CustomerId" class="input"></select>
+          <label>客訴類型</label>
+          <select id="edit_IssueTypeId" class="input"></select>
+          <label>嚴重度</label>
+          <select id="edit_ComplaintSeverity" class="input"><option>低</option><option>中</option><option>高</option></select>
+          <label>客訴日期</label>
+          <input id="edit_ComplaintStartAt" type="date" class="input" />
+          <label>受理日期</label>
+          <input id="edit_ComplaintAcceptedAt" type="date" class="input" />
+          <label>受理人員</label>
+          <select id="edit_ComplaintAcceptedBy" class="input"></select>
+          <label>負責人</label>
+          <select id="edit_ComplaintManagerId" class="input"></select>
+          <label>描述</label>
+          <textarea id="edit_ComplaintDescription" class="input" rows="4"></textarea>
+          <div style="margin-top:8px; display:flex; gap:8px;">
+            <button type="submit" class="button">儲存</button>
+            <button type="button" id="cancelEdit" class="button">取消</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const apiBase = 'http://localhost:5212/api';
+    let cases = [];
+    let complaintTypes = [];
+    let statusTypes = [];
+    let selectedCase = null;
+    let currentRecords = [];
+
+    function formatTime(date) {
+      const h = String(date.getHours()).padStart(2,'0');
+      const m = String(date.getMinutes()).padStart(2,'0');
+      const s = String(date.getSeconds()).padStart(2,'0');
+      return `${h}:${m}:${s}`;
+    }
+
+    function updateClock(){ document.getElementById('time').textContent = formatTime(new Date()); }
+
+    async function fetchCases(){
+      try{
+        const res = await fetch(`${apiBase}/TimMovE_ComplaintCase_`);
+        if(!res.ok) throw new Error('Network response was not ok');
+        cases = await res.json(); renderTable();
+      }catch(err){ console.error('抓取失敗:', err); }
+    }
+
+    function dateFormatted(val){ if(!val) return ''; try{ const d = new Date(val); if(isNaN(d)) return val; return d.toLocaleDateString(); }catch(e){ return val; } }
+
+    function renderTable(){
+      const tbody = document.getElementById('casesTbody'); tbody.innerHTML = '';
+      cases.forEach(c => {
+        const tr = document.createElement('tr'); tr.addEventListener('click', () => openDetails(c));
+        tr.innerHTML = `
+          <td>${c.客訴紀錄編號 ?? ''}</td>
+          <td>${c.客訴類型 ?? ''}</td>
+          <td>${c.對應訂單編號 ?? ''}</td>
+          <td>${dateFormatted(c.客訴日期)}</td>
+          <td>${dateFormatted(c.受理日期)}</td>
+          <td>${badgeSeverity(c.案件嚴重度)}</td>
+          <td>${badgeStatus(c.處理狀態)}</td>
+          <td>${c.案件負責人 ?? ''}</td>
+        `; tbody.appendChild(tr);
+      });
+    }
+
+    function badgeSeverity(val){ if(!val) return ''; const cls = val === '高' ? 'sev-high' : (val === '中' ? 'sev-medium' : 'sev-low'); return `<span class="badge ${cls}"><span class="badge-dot"></span>${val}</span>`; }
+    function badgeStatus(val){ if(!val) return ''; const map = { '待處理':'st-pending','已受理':'st-accepted','處理中':'st-processing','處理完成':'st-completed' }; const cls = map[val] || 'st-pending'; return `<span class="badge ${cls}"><span class="badge-dot"></span>${val}</span>`; }
+
+    // 打開詳情 modal，並載入紀錄
+    async function openDetails(item){
+      try{
+        const res = await fetch(`${apiBase}/TimMovE_ComplaintCase_/${item.客訴紀錄編號}`);
+        if(!res.ok) throw new Error('detail fetch failed');
+        selectedCase = await res.json();
+        showDetails(selectedCase);
+        await loadRecords(selectedCase.客訴紀錄編號);
+        document.getElementById('detailsModal').style.display = 'block';
+      }catch(err){ console.error('Error fetching case details:', err); alert('載入詳情失敗'); }
+    }
+
+    function showDetails(data){
+      const el = document.getElementById('detailContent');
+      el.innerHTML = `
+        <p><strong>案件編號：</strong>${data.客訴紀錄編號 || ''}</p>
+        <p><strong>類型：</strong>${data.客訴類型 || ''}</p>
+        <p><strong>對應訂單：</strong>${data.對應訂單編號 || ''}</p>
+        <p><strong>客訴日期：</strong>${dateFormatted(data.客訴日期)}</p>
+        <p><strong>受理日期：</strong>${dateFormatted(data.受理日期)}</p>
+        <p><strong>嚴重度：</strong>${data.案件嚴重度 || ''}</p>
+        <p><strong>處理狀態：</strong>${data.處理狀態 || ''}</p>
+        <p><strong>負責人：</strong>${data.案件負責人 || ''}</p>
+        <p><strong>內容：</strong><br/>${(data.內容 || data.complaintContent) || ''}</p>
+      `;
+    }
+
+    async function fetchTypes(){
+      try{ const r1 = await fetch(`${apiBase}/TimMovE_ComplaintCase_/types`); if(r1.ok){ complaintTypes = await r1.json(); fillTypeOptions(); } }catch(e){ console.warn('types fetch failed', e); }
+      try{ const r2 = await fetch(`${apiBase}/TimMovE_ComplaintCase_/status`); if(r2.ok){ statusTypes = await r2.json(); fillStatusOptions(); } }catch(e){ console.warn('status fetch failed', e); }
+    }
+
+    function fillTypeOptions(){ const sel = document.getElementById('filterType'); complaintTypes.forEach(v => { const opt = document.createElement('option'); opt.value = v.issueTypeId; opt.textContent = v.issueTypeName; sel.appendChild(opt); }); }
+    function fillStatusOptions(){ const sel = document.getElementById('filterStatus'); statusTypes.forEach(s => { const opt = document.createElement('option'); opt.value = s.complaintStatusId; opt.textContent = s.complaintStatusName; sel.appendChild(opt); }); }
+
+    async function searchCases(){
+      const params = new URLSearchParams();
+      const type = document.getElementById('filterType').value;
+      const ord = document.getElementById('filterSearch').value.trim();
+      const sev = document.getElementById('filterSeverity').value;
+      const st = document.getElementById('filterStatus').value;
+      const start = document.getElementById('StartDate').value;
+      const end = document.getElementById('EndDate').value;
+      if(type && type !== '全部類型') params.append('客訴類型', type);
+      if(ord) params.append('對應訂單編號', ord);
+      if(sev && sev !== '全部嚴重度') params.append('案件嚴重度', sev);
+      if(st && st !== '全部狀態') params.append('處理狀態', st);
+      if(start) params.append('開始客訴日期', start);
+      if(end) params.append('結束客訴日期', end);
+      try{ const res = await fetch(`${apiBase}/TimMovE_ComplaintCase_/search?${params.toString()}`); if(!res.ok) throw new Error('search failed'); const data = await res.json(); cases = data; renderTable(); alert(`共找到 ${cases.length} 筆符合條件的案件`); }catch(err){ console.error('搜尋失敗:', err); alert('搜尋失敗，請稍後再試。'); }
+    }
+
+    // 新增案件
+    async function openNew(){
+      await populateNewOptions();
+      document.getElementById('newModal').style.display = 'block';
+    }
+
+    async function populateNewOptions(){
+      try{
+        const [typesRes, staffRes, casesRes, custRes] = await Promise.all([
+          fetch(`${apiBase}/TimMovE_ComplaintCase_/types`),
+          fetch(`${apiBase}/TimMovE_ComplaintCase_/staff`),
+          fetch(`${apiBase}/TimMovE_ComplaintCase_/GetCaseName`),
+          fetch(`${apiBase}/TimMovE_ComplaintCase_/SelectCustomer`)
+        ]);
+        const [types, staff, caselist, customers] = await Promise.all([typesRes.json(), staffRes.json(), casesRes.json(), custRes.json()]);
+        fillSelect('new_issueType', types, 'issueTypeId', 'issueTypeName');
+        fillSelect('new_acceptedBy', staff, 'employeeId', 'employeeName');
+        fillSelect('new_managerId', staff, 'employeeId', 'employeeName');
+        fillSelect('new_caseId', caselist, 'caseId', 'caseNo');
+        fillSelect('new_customerId', customers, 'customerId', 'customerName');
+      }catch(e){console.error('populateNewOptions',e)}
+    }
+
+    function fillSelect(id, arr, vKey, tKey){ const s = document.getElementById(id); s.innerHTML=''; arr.forEach(x=>{ const o = document.createElement('option'); o.value = x[vKey]; o.textContent = x[tKey]; s.appendChild(o); }); }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      updateClock(); setInterval(updateClock, 1000); fetchCases(); fetchTypes();
+      document.getElementById('searchBtn').addEventListener('click', searchCases);
+      document.getElementById('newCaseBtn').addEventListener('click', openNew);
+
+      // new modal events
+      document.getElementById('closeNew').addEventListener('click', ()=>document.getElementById('newModal').style.display='none');
+      document.getElementById('cancelNew').addEventListener('click', ()=>document.getElementById('newModal').style.display='none');
+      document.getElementById('newForm').addEventListener('submit', async (e)=>{ e.preventDefault(); await createNewCase(); });
+
+      // details modal events
+      document.getElementById('closeDetails').addEventListener('click', ()=>document.getElementById('detailsModal').style.display='none');
+      document.getElementById('editBtn').addEventListener('click', ()=>openEdit(selectedCase));
+      document.getElementById('acceptBtn').addEventListener('click', async ()=>{ if(!selectedCase){alert('尚未選取案件'); return;} await patchStatusAccepted(selectedCase); });
+      document.getElementById('deleteBtn').addEventListener('click', async ()=>{ if(!selectedCase) return; if(!confirm('確定要刪除此案件嗎？')) return; await deleteCase(selectedCase); document.getElementById('detailsModal').style.display='none'; });
+      document.getElementById('addRecordBtn').addEventListener('click', async ()=>{ if(!selectedCase){alert('尚未選取案件');return;} await createRecordPrompt(selectedCase.客訴紀錄編號); });
+
+      // edit modal events
+      document.getElementById('closeEdit').addEventListener('click', ()=>document.getElementById('editModal').style.display='none');
+      document.getElementById('cancelEdit').addEventListener('click', ()=>document.getElementById('editModal').style.display='none');
+      document.getElementById('editForm').addEventListener('submit', async (e)=>{ e.preventDefault(); await saveEdit(); });
+    });
+
+    async function createNewCase(){
+      const payload = {
+        caseId: document.getElementById('new_caseId').value,
+        customerId: document.getElementById('new_customerId').value,
+        issueTypeId: document.getElementById('new_issueType').value,
+        complaintDescription: document.getElementById('new_description').value,
+        complaintSeverity: document.getElementById('new_severity').value,
+        complaintAcceptedBy: document.getElementById('new_acceptedBy').value,
+        complaintManagerId: document.getElementById('new_managerId').value,
+        complaintStartAt: document.getElementById('new_startAt').value
+      };
+      try{
+        const r = await fetch(`${apiBase}/TimMovE_ComplaintCase_`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        if(!r.ok) throw new Error('create failed');
+        alert('新增成功'); document.getElementById('newModal').style.display='none'; await fetchCases();
+      }catch(e){ console.error(e); alert('新增失敗'); }
+    }
+
+    async function patchStatusAccepted(item){
+      try{
+        await fetch(`${apiBase}/TimMovE_ComplaintCase_/${item.客訴紀錄編號}`, { method: 'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(2) });
+        alert('已標示為已受理'); await fetchCases(); await openDetails(item);
+      }catch(e){ console.error(e); alert('更新失敗'); }
+    }
+
+    async function deleteCase(item){ try{ const r = await fetch(`${apiBase}/TimMovE_ComplaintCase_/${item.客訴紀錄編號}`, { method:'DELETE' }); if(!r.ok) throw new Error('delete failed'); alert('已刪除'); await fetchCases(); }catch(e){ console.error(e); alert('刪除失敗'); } }
+
+    // Records
+    async function loadRecords(caseId){
+      try{
+        const res = await fetch(`${apiBase}/CaseRecord/${caseId}/Progress`);
+        if(!res.ok) throw new Error('load records failed');
+        const data = await res.json(); currentRecords = data.progressDTOs || []; renderRecords();
+      }catch(e){ console.error(e); document.getElementById('recordPanel').textContent = '載入紀錄失敗'; }
+    }
+
+    function renderRecords(){
+      const panel = document.getElementById('recordPanel'); panel.innerHTML = '';
+      if(currentRecords.length === 0) { panel.innerHTML = '<p>尚無紀錄</p>'; return; }
+      currentRecords.forEach(item=>{
+        const div = document.createElement('div'); div.style.borderBottom='1px solid #eee'; div.style.padding='8px 0';
+        div.innerHTML = `<p><strong>${item.handleStatus||''}</strong> <small>${(item.timestamp||'').replace('T',' ')}</small></p><p>${item.description||''}</p>`;
+        const del = document.createElement('button'); del.textContent='刪除'; del.className='button'; del.style.background='#e74c3c'; del.addEventListener('click', ()=>deleteRecord(item));
+        div.appendChild(del); panel.appendChild(div);
+      });
+    }
+
+    async function deleteRecord(item){ if(!confirm('確定刪除此紀錄？')) return; try{ const r = await fetch(`${apiBase}/CaseRecord/${item.processId}`, { method:'DELETE' }); if(!r.ok) throw new Error(); alert('刪除成功'); await loadRecords(selectedCase.客訴紀錄編號); }catch(e){ console.error(e); alert('刪除失敗'); } }
+
+    async function createRecordPrompt(caseId){
+      const status = prompt('輸入狀態 ID (3 處理中, 5 結案)');
+      const description = prompt('輸入描述');
+      if(!status) return;
+      const payload = { processId:0, HandledBy:0, CreatedBy:0, HandleStatusId: Number(status), handleStatus: '', ProcessDescription: description, isNew:true, isEditMode:false };
+      try{ const r = await fetch(`${apiBase}/CaseRecord/${caseId}/CreateRecord`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) }); if(!r.ok) throw new Error('create record failed'); alert('創建成功'); await loadRecords(caseId); await fetchCases(); }catch(e){ console.error(e); alert('創建失敗'); }
+    }
+
+    // Edit
+    async function openEdit(data){
+      if(!data) return;
+      // populate options for edit selects
+      try{
+        const [typesRes, staffRes, casesRes, custRes] = await Promise.all([
+          fetch(`${apiBase}/TimMovE_ComplaintCase_/types`),
+          fetch(`${apiBase}/TimMovE_ComplaintCase_/staff`),
+          fetch(`${apiBase}/TimMovE_ComplaintCase_/GetCaseName`),
+          fetch(`${apiBase}/TimMovE_ComplaintCase_/SelectCustomer`)
+        ]);
+        const [types, staff, caselist, customers] = await Promise.all([typesRes.json(), staffRes.json(), casesRes.json(), custRes.json()]);
+        fillSelect('edit_IssueTypeId', types, 'issueTypeId','issueTypeName'); fillSelect('edit_ComplaintAcceptedBy', staff, 'employeeId','employeeName'); fillSelect('edit_ComplaintManagerId', staff, 'employeeId','employeeName'); fillSelect('edit_CaseId', caselist, 'caseId','caseNo'); fillSelect('edit_CustomerId', customers, 'customerId','customerName');
+      }catch(e){console.warn('openEdit fill options failed',e)}
+      document.getElementById('edit_complaintId').value = data.客訴紀錄編號 || '';
+      document.getElementById('edit_CaseId').value = data.對應訂單編號 || '';
+      document.getElementById('edit_CustomerId').value = data.客戶姓名 || '';
+      document.getElementById('edit_IssueTypeId').value = data.客訴類型 || '';
+      document.getElementById('edit_ComplaintSeverity').value = data.案件嚴重度 || '';
+      document.getElementById('edit_ComplaintStartAt').value = data.客訴日期formatted || '';
+      document.getElementById('edit_ComplaintAcceptedAt').value = data.受理日期formatted || '';
+      document.getElementById('edit_ComplaintAcceptedBy').value = data.受理人員 || '';
+      document.getElementById('edit_ComplaintManagerId').value = data.案件負責人 || '';
+      document.getElementById('edit_ComplaintDescription').value = data.客訴內容 || '';
+      document.getElementById('editModal').style.display = 'block';
+    }
+
+    async function saveEdit(){
+      const id = document.getElementById('edit_complaintId').value;
+      const payload = {
+        ComplaintId: id,
+        CaseId: document.getElementById('edit_CaseId').value,
+        CustomerId: document.getElementById('edit_CustomerId').value,
+        IssueTypeId: document.getElementById('edit_IssueTypeId').value,
+        ComplaintDescription: document.getElementById('edit_ComplaintDescription').value,
+        ComplaintSeverity: document.getElementById('edit_ComplaintSeverity').value,
+        ComplaintManagerId: document.getElementById('edit_ComplaintManagerId').value,
+        ComplaintAcceptedBy: document.getElementById('edit_ComplaintAcceptedBy').value,
+        ComplaintStartAt: document.getElementById('edit_ComplaintStartAt').value,
+        ComplaintAcceptedAt: document.getElementById('edit_ComplaintAcceptedAt').value
+      };
+      try{
+        const r = await fetch(`${apiBase}/TimMovE_ComplaintCase_/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        if(!r.ok) throw new Error('put failed'); alert('儲存成功'); document.getElementById('editModal').style.display='none'; await fetchCases(); if(selectedCase && selectedCase.客訴紀錄編號==id) await openDetails(selectedCase);
+      }catch(e){ console.error(e); alert('儲存失敗'); }
+    }
+
+  </script>
+</body>
+</html>

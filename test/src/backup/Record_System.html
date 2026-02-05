@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>紀錄系統</title>
+  <style>
+    body{font-family:Microsoft JhengHei, sans-serif;background:#F7F9FC;padding:20px}
+    .timeline-window{background:#fff;padding:20px;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,0.06);max-width:900px;margin:auto}
+    .timeline-item{border-bottom:1px solid #eee;padding:12px 0}
+    select,input,textarea{padding:8px;border:1px solid #E0E0E0;border-radius:6px}
+    .btn{padding:6px 10px;border-radius:6px;border:none;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="timeline-window">
+    <div style="text-align:right;margin-bottom:12px"><button id="addBtn" class="btn">新增進度</button></div>
+    <div id="list"></div>
+  </div>
+
+  <script>
+    const apiBase = 'http://localhost:5212/api';
+    let progresses = [];
+    let employees = [];
+    function el(id){return document.getElementById(id)}
+
+    async function load(caseId){
+      try{
+        const [r1,r2] = await Promise.all([
+          fetch(`${apiBase}/CaseRecord/${caseId}/Progress`),
+          fetch(`${apiBase}/CaseRecord/Staff`)
+        ]);
+        const pData = await r1.json(); employees = await r2.json(); progresses = pData.progressDTOs || []; render();
+      }catch(e){console.error(e);el('list').textContent='載入失敗'}
+    }
+
+    function render(){
+      const container = el('list'); container.innerHTML = '';
+      progresses.forEach(item=>{
+        const div = document.createElement('div'); div.className='timeline-item';
+        div.innerHTML = `
+          <h4>${item.handleStatus||'狀態'}</h4>
+          <p>${(item.timestamp||'').replace('T',' ')}</p>
+          <p><textarea rows="3">${item.description||''}</textarea></p>
+          <p>負責人: <select data-id="${item.processId}"></select></p>
+          <div style="margin-top:8px"><button data-del="${item.processId}" class="btn">刪除</button></div>
+        `;
+        container.appendChild(div);
+        const sel = div.querySelector('select'); employees.forEach(emp=>{ const o=document.createElement('option'); o.value=emp.employeeId; o.textContent=emp.employeeName; if(emp.employeeId==item.creater) o.selected=true; sel.appendChild(o)});
+        div.querySelector('[data-del]').addEventListener('click',()=>DeleteProcess(item));
+      });
+    }
+
+    async function DeleteProcess(item){ if(!confirm('確定刪除？')) return; try{ const r=await fetch(`${apiBase}/CaseRecord/${item.processId}`,{method:'DELETE'}); if(!r.ok) throw new Error(); progresses = progresses.filter(p=>p.processId!==item.processId); render(); alert('已刪除'); }catch(e){console.error(e);alert('刪除失敗')} }
+
+    document.getElementById('addBtn').addEventListener('click',()=>{ const id = new URLSearchParams(location.search).get('id'); if(!id){alert('請在 URL 加上 ?id=案件編號'); return;} const hasNew = progresses.some(p=>p.isNew); if(hasNew){alert('請先完成現有建立'); return;} const newItem = { isNew:true, isEditMode:true, handleStatusId:null, timestamp:new Date().toISOString(), description:'', creater:null, processId:0 }; progresses.unshift(newItem); render(); });
+
+    // Create record example (簡化)
+    async function CreateNewRecord(caseId, item){ try{ const res = await fetch(`${apiBase}/CaseRecord/${caseId}/CreateRecord`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(item)}); if(!res.ok) throw new Error(); const data=await res.json(); alert('創建成功'); load(caseId); }catch(e){console.error(e);alert('創建失敗')} }
+
+    const id = new URLSearchParams(location.search).get('id'); if(id) load(id); else el('list').textContent='請於 URL 加上 ?id=案件編號 以載入該案件進度';
+  </script>
+</body>
+</html>

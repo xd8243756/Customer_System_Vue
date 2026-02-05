@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>公告詳情</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body{font-family:Microsoft JhengHei, sans-serif;background:#F7F9FC;margin:0;padding:0}
+    .brand-title{font-size:28px;color:#2F80ED;font-weight:700}
+    .page-wrap{padding:24px}
+    .detail-card{max-width:1100px;margin:18px auto;background:#fff;padding:0;border-radius:10px}
+    .category-stripe{height:6px;border-top-left-radius:10px;border-top-right-radius:10px}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+  <header class="d-flex align-items-center justify-content-between p-3 bg-white border-bottom">
+    <div class="brand-title ms-4">魔法使搬運鋪—公告欄</div>
+    <div id="time" class="me-4">--:--:--</div>
+  </header>
+
+  <div class="page-wrap">
+    <div class="container">
+      <div class="card detail-card shadow-sm border-0">
+        <div id="stripe" class="category-stripe bg-primary"></div>
+        <div class="p-3 d-flex">
+          <button id="backBtn" class="btn btn-outline-primary rounded-pill me-2"><i class="bi bi-arrow-left"></i> 回到列表</button>
+          <div class="ms-auto d-flex gap-2">
+            <button id="editBtn" class="btn rounded-pill btn-outline-primary"><i id="editIcon" class="bi bi-pencil"></i> 編輯</button>
+            <button id="deleteBtn" class="btn btn-outline-danger rounded-pill"><i class="bi bi-trash"></i> 刪除</button>
+          </div>
+        </div>
+
+        <div class="card-body p-4">
+          <div id="titleWrap" class="mb-4">
+            <h1 id="titleDisplay" class="h3">載入中...</h1>
+            <input id="titleInput" class="form-control hidden" />
+          </div>
+
+          <div class="row g-3 mb-4 bg-light rounded-3 text-center p-3">
+            <div class="col-6 col-md-3 border-end">
+              <small class="text-muted d-block">發布部門</small>
+              <strong id="deptDisplay"></strong>
+              <select id="deptSelect" class="form-select hidden mt-2"></select>
+            </div>
+            <div class="col-6 col-md-3 border-end">
+              <small class="text-muted d-block">公告類型</small>
+              <strong id="typeDisplay"></strong>
+              <select id="typeSelect" class="form-select hidden mt-2"></select>
+            </div>
+            <div class="col-6 col-md-3 border-end">
+              <small class="text-muted d-block">發布時間</small>
+              <strong id="createdAt"></strong>
+            </div>
+            <div class="col-6 col-md-3">
+              <small class="text-muted d-block">發布人</small>
+              <strong id="publishedBy"></strong>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <h5 class="text-muted">詳情：</h5>
+            <textarea id="contentArea" class="form-control" rows="6" readonly></textarea>
+          </div>
+
+          <div id="topAlert" class="alert alert-warning d-none"><i class="bi bi-pin-angle-fill me-2"></i>此公告已被管理員設定為置頂。</div>
+
+          <div id="istopWrap" class="form-check mt-3 hidden">
+            <input class="form-check-input" type="checkbox" id="istop" />
+            <label class="form-check-label" for="istop">是否置頂</label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const apiBase = 'http://localhost:5212/api';
+    let Details = null; let isEdit = false;
+    function tick(){ const d=new Date(); document.getElementById('time').textContent = d.toLocaleTimeString(); }
+    setInterval(tick,1000); tick();
+
+    function id(el){ return document.getElementById(el); }
+
+    function fillSelect(id, arr, vKey, tKey){ const s = id(el=id); }
+
+    async function load(){
+      const idParam = new URLSearchParams(location.search).get('id');
+      if(!idParam){ alert('缺少 id'); return; }
+      try{
+        const [deptRes, detailRes, typeRes] = await Promise.all([
+          fetch(`${apiBase}/Announcement_/GetAnnouncementCategory`).catch(()=>null),
+          fetch(`${apiBase}/Announcement_/selectAnnounccement/${idParam}`),
+          fetch(`${apiBase}/Announcement_/GetAnnouncementType`).catch(()=>null)
+        ]);
+        if(!detailRes.ok){ const txt = await detailRes.text(); throw new Error('載入公告失敗: '+txt); }
+        const detail = await detailRes.json(); Details = detail;
+
+        const depts = deptRes && deptRes.ok ? await deptRes.json() : [];
+        const types = typeRes && typeRes.ok ? await typeRes.json() : [];
+
+        // populate fields
+        id('titleDisplay').textContent = detail.announcementTitle || '';
+        id('titleInput').value = detail.announcementTitle || '';
+        id('createdAt').textContent = (detail.createdAt||'').replace('T',' ').slice(0,16);
+        id('publishedBy').textContent = detail.publishedBy || '';
+        id('contentArea').value = detail.announcementContent || '';
+        if(detail.istop) id('topAlert').classList.remove('d-none'); else id('topAlert').classList.add('d-none');
+
+        // fill selects
+        const deptSelect = id('deptSelect'); deptSelect.innerHTML=''; depts.forEach(d=>{ const o=document.createElement('option'); o.value=d.topicCategoryId; o.textContent=d.topicCategoryName; deptSelect.appendChild(o); });
+        const typeSelect = id('typeSelect'); typeSelect.innerHTML=''; types.forEach(t=>{ const o=document.createElement('option'); o.value=t.topicTypeId; o.textContent=t.topicTypeName; typeSelect.appendChild(o); });
+
+        // set display names
+        const deptName = (depts.find?depts.find(d=>String(d.topicCategoryId)==String(detail.announcementCategory)||String(d.topicCategoryId)==String(detail.announcementCategoryId))?.topicCategoryName:detail.announcementCategory) || '';
+        const typeName = (types.find?types.find(t=>String(t.topicTypeId)==String(detail.announcementType)||String(t.topicTypeId)==String(detail.announcementTypeId))?.topicTypeName:detail.announcementType) || '';
+        id('deptDisplay').textContent = deptName;
+        id('typeDisplay').textContent = typeName;
+
+        // set select values if available
+        if(deptSelect.options.length) deptSelect.value = detail.announcementCategory || detail.announcementCategoryId || '';
+        if(typeSelect.options.length) typeSelect.value = detail.announcementType || detail.announcementTypeId || '';
+
+        // istop checkbox initial
+        const ist = id('istop'); if(ist) { ist.checked = !!detail.istop; }
+
+      }catch(e){ console.error(e); alert('載入失敗，請查看 console'); }
+    }
+
+    // helpers for DOM
+    function showEdit(on){
+      isEdit = on;
+      const titleDisplay = id('titleDisplay'); const titleInput = id('titleInput');
+      const contentArea = id('contentArea'); const deptSelect = id('deptSelect'); const typeSelect = id('typeSelect');
+      const deptDisplay = id('deptDisplay'); const typeDisplay = id('typeDisplay'); const istopWrap = id('istopWrap');
+      const editBtn = id('editBtn'); const editIcon = id('editIcon');
+      if(on){
+        titleDisplay.classList.add('hidden'); titleInput.classList.remove('hidden'); contentArea.readOnly = false; deptSelect.classList.remove('hidden'); typeSelect.classList.remove('hidden'); istopWrap.classList.remove('hidden'); editBtn.classList.remove('btn-outline-primary'); editBtn.classList.add('btn-outline-info'); editIcon.className='bi bi-check-lg'; editBtn.textContent = ' 儲存'; editBtn.prepend(editIcon);
+      } else {
+        titleDisplay.classList.remove('hidden'); titleInput.classList.add('hidden'); contentArea.readOnly = true; deptSelect.classList.add('hidden'); typeSelect.classList.add('hidden'); istopWrap.classList.add('hidden'); editBtn.classList.remove('btn-outline-info'); editBtn.classList.add('btn-outline-primary'); editIcon.className='bi bi-pencil'; editBtn.textContent = ' 編輯'; editBtn.prepend(editIcon);
+      }
+    }
+
+    document.getElementById('backBtn').addEventListener('click', ()=> location.href = 'Announcement.html');
+
+    document.getElementById('editBtn').addEventListener('click', async ()=>{
+      if(!isEdit){ showEdit(true); return; }
+      // save
+      const idParam = new URLSearchParams(location.search).get('id'); if(!idParam) { alert('缺少 id'); return; }
+      // prepare payload using API DTO keys
+      const payload = {
+        announcementTitle: id('titleInput').value,
+        announcementContent: id('contentArea').value,
+        announcementCategoryId: id('deptSelect').value || Details?.announcementCategoryId || Details?.announcementCategory,
+        announcementTypeId: id('typeSelect').value || Details?.announcementTypeId || Details?.announcementType,
+        istop: id('istop')? !!id('istop').checked : false
+      };
+      // validate type
+      if(!payload.announcementTypeId){ alert('請選擇公告類型'); return; }
+      try{
+        const r = await fetch(`${apiBase}/Announcement_/selectAnnounccement/${idParam}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        if(!r.ok){ const txt = await r.text(); throw new Error(txt || 'put failed'); }
+        alert('儲存成功');
+        // reflect UI
+        Details = Object.assign({}, Details, payload);
+        id('titleDisplay').textContent = payload.announcementTitle;
+        id('deptDisplay').textContent = id('deptSelect').selectedOptions[0]?.textContent || id('deptDisplay').textContent;
+        id('typeDisplay').textContent = id('typeSelect').selectedOptions[0]?.textContent || id('typeDisplay').textContent;
+        if(payload.istop) id('topAlert').classList.remove('d-none'); else id('topAlert').classList.add('d-none');
+      }catch(e){ console.error(e); alert('儲存失敗: '+(e.message||e)); }
+      showEdit(false);
+    });
+
+    document.getElementById('deleteBtn').addEventListener('click', async ()=>{
+      if(!confirm('確定要刪除此公告嗎？')) return; const idParam = new URLSearchParams(location.search).get('id'); try{ const r = await fetch(`${apiBase}/Announcement_/${idParam}`, { method:'DELETE' }); if(!r.ok) throw new Error('delete failed'); alert('刪除成功'); location.href='Announcement.html'; }catch(e){ console.error(e); alert('刪除失敗'); }
+    });
+
+    // init
+    load();
+    const bsScript = document.createElement('script'); bsScript.src = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js'; document.body.appendChild(bsScript);
+  </script>
+</body>
+</html>

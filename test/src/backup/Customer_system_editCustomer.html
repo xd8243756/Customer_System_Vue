@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>編輯客訴</title>
+  <style>
+    body{font-family:Microsoft JhengHei, sans-serif;background:#F7F9FC;padding:20px}
+    .card{max-width:720px;margin:auto;background:#fff;padding:20px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,0.06)}
+    label{display:block;margin-bottom:6px}
+    input,select,textarea{width:100%;padding:8px;margin-bottom:12px;border:1px solid #E0E0E0;border-radius:6px}
+    button{padding:8px 12px;border-radius:6px;border:none;cursor:pointer}
+    .btn-success{background:#28a745;color:#fff}.btn-secondary{background:#6c757d;color:#fff}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h3>編輯客訴</h3>
+    <form id="editForm">
+      <input type="hidden" id="complaintId" />
+      <label>訂單編號</label>
+      <select id="CaseId"></select>
+      <label>客戶姓名</label>
+      <select id="CustomerId"></select>
+      <label>客訴類型</label>
+      <select id="IssueTypeId"></select>
+      <label>案件嚴重度</label>
+      <select id="ComplaintSeverity"><option>低</option><option>中</option><option>高</option></select>
+      <label>客訴日期</label>
+      <input type="date" id="ComplaintStartAt" />
+      <label>受理日期</label>
+      <input type="date" id="ComplaintAcceptedAt" />
+      <label>受理人員</label>
+      <select id="ComplaintAcceptedBy"></select>
+      <label>負責人</label>
+      <select id="ComplaintManagerId"></select>
+      <label>描述</label>
+      <textarea id="ComplaintDescription" rows="4"></textarea>
+      <div style="display:flex;gap:8px">
+        <button type="submit" class="btn-success">儲存</button>
+        <button type="button" class="btn-secondary" id="cancelBtn">取消</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    const apiBase = 'http://localhost:5212/api';
+    async function loadOptions(){
+      try{
+        const [t, s, c, cust] = await Promise.all([
+          fetch(`${apiBase}/TimMovE_ComplaintCase_/types`),
+          fetch(`${apiBase}/TimMovE_ComplaintCase_/staff`),
+          fetch(`${apiBase}/TimMovE_ComplaintCase_/GetCaseName`),
+          fetch(`${apiBase}/TimMovE_ComplaintCase_/SelectCustomer`)
+        ]);
+        const [types, staff, cases, customers] = await Promise.all([t.json(), s.json(), c.json(), cust.json()]);
+        fill('IssueTypeId',types,'issueTypeId','issueTypeName');
+        fill('ComplaintAcceptedBy',staff,'employeeId','employeeName');
+        fill('ComplaintManagerId',staff,'employeeId','employeeName');
+        fill('CaseId',cases,'caseId','caseNo');
+        fill('CustomerId',customers,'customerId','customerName');
+      }catch(e){console.error(e)}
+    }
+    function fill(id,arr,val,text){const s=document.getElementById(id);s.innerHTML='';arr.forEach(a=>{const o=document.createElement('option');o.value=a[val];o.textContent=a[text];s.appendChild(o)})}
+
+    async function loadDetail(id){
+      try{const r=await fetch(`${apiBase}/TimMovE_ComplaintCase_/${id}`); if(!r.ok) throw new Error(); const data=await r.json(); populate(data);}catch(e){console.error(e)}
+    }
+    function populate(d){ document.getElementById('complaintId').value=d.客訴紀錄編號||''; document.getElementById('CaseId').value=d.對應訂單編號||''; document.getElementById('CustomerId').value=d.客戶姓名||''; document.getElementById('IssueTypeId').value=d.客訴類型||''; document.getElementById('ComplaintSeverity').value=d.案件嚴重度||''; document.getElementById('ComplaintStartAt').value=d.客訴日期formatted||''; document.getElementById('ComplaintAcceptedAt').value=d.受理日期formatted||''; document.getElementById('ComplaintAcceptedBy').value=d.受理人員||''; document.getElementById('ComplaintManagerId').value=d.案件負責人||''; document.getElementById('ComplaintDescription').value=d.客訴內容||'' }
+
+    document.getElementById('editForm').addEventListener('submit', async (e)=>{ e.preventDefault(); const id=document.getElementById('complaintId').value; const payload={ ComplaintId:id, CaseId: document.getElementById('CaseId').value, CustomerId: document.getElementById('CustomerId').value, IssueTypeId: document.getElementById('IssueTypeId').value, ComplaintDescription: document.getElementById('ComplaintDescription').value, ComplaintSeverity: document.getElementById('ComplaintSeverity').value, ComplaintManagerId: document.getElementById('ComplaintManagerId').value, ComplaintAcceptedBy: document.getElementById('ComplaintAcceptedBy').value, ComplaintStartAt: document.getElementById('ComplaintStartAt').value, ComplaintAcceptedAt: document.getElementById('ComplaintAcceptedAt').value };
+      try{ const r = await fetch(`${apiBase}/TimMovE_ComplaintCase_/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); if(!r.ok) throw new Error('put failed'); alert('儲存成功'); }catch(e){console.error(e);alert('儲存失敗')}
+    });
+
+    document.getElementById('cancelBtn').addEventListener('click',()=>history.back());
+    (async ()=>{ await loadOptions(); const params=new URLSearchParams(location.search); const id=params.get('id'); if(id) await loadDetail(id); })();
+  </script>
+</body>
+</html>
