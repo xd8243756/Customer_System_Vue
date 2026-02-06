@@ -1,6 +1,7 @@
 # 🚚 搬家公司內部管理系統
 
 > 一個專為搬家公司打造的全方位內部管理平台，整合客訴處理與公告管理功能
+> 後端請連接至：https://github.com/xd8243756/TimMove_System.git
 
 [![Vue.js](https://img.shields.io/badge/Vue.js-3.x-4FC08D?logo=vue.js&logoColor=white)](https://vuejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
