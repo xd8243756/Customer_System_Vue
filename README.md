@@ -1,6 +1,5 @@
 # 🚚 搬家公司內部管理系統
 
-> 一個專為搬家公司打造的全方位內部管理平台，整合客訴處理與公告管理功能
 > 後端請連接至：https://github.com/xd8243756/TimMove_System.git
 
 [![Vue.js](https://img.shields.io/badge/Vue.js-3.x-4FC08D?logo=vue.js&logoColor=white)](https://vuejs.org/)
@@ -8,10 +7,6 @@
 [![Ant Design Vue](https://img.shields.io/badge/Ant%20Design%20Vue-4.x-0170FE?logo=ant-design&logoColor=white)](https://antdv.com/)
 [![Bootstrap](https://img.shields.io/badge/Bootstrap-5.x-7952B3?logo=bootstrap&logoColor=white)](https://getbootstrap.com/)
 
-
-## 🎯 系統簡介
-
-本系統是為 **TimMovE 搬運公司** 開發的內部管理平台，旨在提升客戶服務品質與內部溝通效率。系統整合了客訴案件管理、處理進度追蹤以及公司公告發布等核心功能。
 
 ## 系統切換
 於App.Vue的template裡面輸入Customer_System / RouterView 來切換 客訴系統/公告系統
