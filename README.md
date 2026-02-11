@@ -8,15 +8,6 @@
 [![Ant Design Vue](https://img.shields.io/badge/Ant%20Design%20Vue-4.x-0170FE?logo=ant-design&logoColor=white)](https://antdv.com/)
 [![Bootstrap](https://img.shields.io/badge/Bootstrap-5.x-7952B3?logo=bootstrap&logoColor=white)](https://getbootstrap.com/)
 
-## 📋 目錄
-
-- [系統簡介](#系統簡介)
-- [核心功能](#核心功能)
-- [技術架構](#技術架構)
-- [系統截圖](#系統截圖)
-- [快速開始](#快速開始)
-- [專案結構](#專案結構)
-- [API 端點](#api-端點)
 
 ## 🎯 系統簡介
 
